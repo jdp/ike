@@ -2,7 +2,29 @@ ________________
 ike: rake for io
 ----------------
 
-This is how I'm learning Io.  By writing code, y'know.
+Usage:
+	ike [ -v | -h | -T ] TASKS
+	
+Switches:
+	-v	show version
+	-h	show help
+	-T	show tasks
+	
+TASKS is a space-separated lists of tasks, defined by the task() method.
 
+Example task:
+
+desc("An example task")
+task("example",
+	"An example task" println
+)
+
+And then call:
+	ike example
+	
+To run the example task. You can also use the depends() method to add
+task dependencies.
+
+original implementation:
 >> chris@ozmm.org
-=> http://github.com/defunkt/ike 
+=> http://github.com/defunkt/ike
