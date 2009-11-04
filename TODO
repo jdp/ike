@@ -3,5 +3,5 @@
 [x] descriptions
 [x] namespaces
 [x] default task
-[ ] dependencies
-[ ] sh 
+[x] dependencies
+[x] sh 

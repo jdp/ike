@@ -1,41 +1,50 @@
-////
-// ike: io make
+#!/usr/bin/env io
+
 Ike := Object clone do(
-	tasks    := list()
-	nextDesc := nil
-	logging  := true
-	currentNamespace := nil
+	tasks        := list()
+	logging      := true
+	nextDesc     := nil
+	nsParts      := list()
 	dependencies := list()
-	successes := list()
+	successes    := list()
+)
+
+Ike Task := Object clone do(
+
+	with := method(name, body, desc, deps,
+		self setSlot("result", true)
+		self setSlot("name", name) 
+		self setSlot("body", body) 
+		self setSlot("desc", desc)
+		self setSlot("deps", deps)
+		self
+	)
+
+	invoke := method(
+		e := try(result := doMessage(body))
+		e catch(fail(e error))
+		if(result not, fail)
+	)
+		
+	fail := method(
+		write("=> Task `", name, "' failed")
+		if(call argCount > 0, write(": ", call evalArgs join))
+		write("\n")
+		System exit(1)
+	)
+	
+	sh := method(command,
+		cmd := System runCommand(command)
+		if(cmd exitStatus > 0, fail(cmd stderr))
+		cmd
+	)
+	
 )
 
 Ike do(
 
-	Task := Object clone do(
-		with := method(name, body, desc, deps,
-			self setSlot("name", name) 
-			self setSlot("body", body) 
-			self setSlot("desc", desc)
-			self setSlot("deps", deps)
-			self
-		)
-
-		invoke := method(
-			result := doMessage(body)
-			if(result not, fail)
-		)
-		
-		fail := method(
-			write("=> Task `", name, "' failed")
-			if(call argCount > 0, write(": ", call evalArgs join))
-			write("\n")
-			exit
-		)
-	)
-
-
 	task := method(name,
-		if(currentNamespace, name = "#{currentNamespace}:#{name}" interpolate)
+		name = list(nsParts, name) flatten join(":")
 		tasks << Ike Task clone with(name, call message arguments last, nextDesc, dependencies)
 		nextDesc = nil
 		dependencies = list()
@@ -46,9 +55,9 @@ Ike do(
 	)		
 
 	namespace := method(space,
-		currentNamespace = space
+		nsParts << space
 		call message argAt(1) doInContext(Ike)
-		currentNamespace = nil
+		nsParts removeLast
 	)
 	
 	depends := method(
@@ -78,25 +87,20 @@ Ike do(
 	log := method(
 		if(logging, writeln("=> ", call evalArgs join))
 	)
-	
-	showHelp := method(writeln("Help is on the way, dear."))
-	
-	showVersion := method(writeln("Ike -50"))
 
 	showTasks := method(
-		longest := tasks map(name size) max
-		tasks foreach(task,
-			// rake style hiding of tasks without descriptions
-			if(task desc isNil, continue)
+		describedTasks := tasks select(desc isNil not)
+		longest := describedTasks map(name size) max
+		describedTasks foreach(task,
 			write("ike ", task name)
 			diff := longest - task name size
-      		writeln(" " repeated(diff + 7), " # ", task desc)
+      		writeln(" " repeated(diff), " # ", task desc)
 		)  
 	)
 	
 )
 
-/* Create a list append operator << */
+// Create a list append operator <<
 List << := method(other, append(other))
 
 // Transfer each of these calls from lobby to Ike object
@@ -107,17 +111,6 @@ list("task", "desc", "namespace", "depends") foreach(slot,
 list("Ikefile", "ikefile", "Ikefile.io", "ikefile.io") foreach(ikefile,
 	if(File exists(ikefile), doFile(ikefile); break)
 )
-
-/* Parse arguments into easily workable units */
-options := System getOptions(System args slice(1)) map(k, v, list(k, v))
-switches := options select(v, v at(0) exSlice(0, 1) == "-" and v at(1) == "") map(at(0))
-pairs := options select(at(1) != "") map(v, Map clone atPut(v at(0), v at(1)))
-words := options select(at(1) == "") map(at(0)) difference(switches)
-
-/* Do work */
-if(switches contains("-h"), Ike showHelp; exit)
-if(switches contains("-v"), Ike showVersion; exit)
-if(switches contains("-T"), Ike showTasks; exit)
 
 if(words size == 0, 
 	Ike invoke("default")
