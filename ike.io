@@ -87,16 +87,6 @@ Ike do(
 	log := method(
 		if(logging, writeln("=> ", call evalArgs join))
 	)
-
-	showTasks := method(
-		describedTasks := tasks select(desc isNil not)
-		longest := describedTasks map(name size) max
-		describedTasks foreach(task,
-			write("ike ", task name)
-			diff := longest - task name size
-      		writeln(" " repeated(diff), " # ", task desc)
-		)  
-	)
 	
 )
 
@@ -108,16 +98,34 @@ list("task", "desc", "namespace", "depends") foreach(slot,
 	setSlot(slot, method(call delegateTo(Ike)))
 )
 
+// Add some default tasks to simulate command-line options
+task("-h", """ike [tasks]
+
+Built-in tasks:
+  -h  Show this summary
+  -T  Show described tasks
+  -V  Show Ike version""" println
+)
+
+task("-V", "ike, version 0.1.0" println)
+
+task("-T",
+	describedTasks := Ike tasks select(desc isNil not)
+	longest := describedTasks map(name size) max
+	describedTasks foreach(task,
+		write("ike ", task name)
+		diff := longest - task name size
+      	writeln(" " repeated(diff), " # ", task desc)
+	)  
+	true
+)
+
 list("Ikefile", "ikefile", "Ikefile.io", "ikefile.io") foreach(ikefile,
 	if(File exists(ikefile), doFile(ikefile); break)
 )
 
-if(words size == 0, 
-	Ike invoke("default")
-, 
-	words foreach(a,
-		Ike log("Ike job `", a, "'")
-		Ike invoke(a)
-	)
-)
+options := System args
+options removeFirst
+if(options isEmpty, options << "default")
+options foreach(option, Ike invoke(option))
 
